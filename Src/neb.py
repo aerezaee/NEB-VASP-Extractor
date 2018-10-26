@@ -23,6 +23,9 @@ class App(QWidget):
         self.width = 550
         self.height = 500
         self.numberOfLevelsToScan = 0;
+        self.type = "VASP";
+        self.fileType = {"VASP":"OUTCAR", "Quantum Espresso":"out"};
+        self.energyText = {"VASP":"  free  energy   TOTEN  = ", "Quantum Espresso":"!    total energy              ="}
         self.values = pd.DataFrame(columns = ['File','Energy','Diff Energy']);
         self.initUI()
     def initUI(self):
@@ -44,12 +47,21 @@ class App(QWidget):
         self.directoryChooserBtn.clicked.connect(self.buttonControl);
         self.levelSelector = QCheckBox("Only scan the first directory", self);self.levelSelector.toggle();self.levelSelector.stateChanged.connect(self.levelChanger);
 
+        self.typeLabel = QLabel("Choose The Program",self);
+        self.typeCombo = QComboBox(self);
+        self.typeCombo.addItem("VASP");
+        self.typeCombo.addItem("Quantum Espresso");
+        self.typeCombo.activated[str].connect(self.typeComboHandler);
+
         self.dpLabel = QLabel("Directory Path",self);
         self.directoryPathLabel = QLabel("Path",self);
+        
 
         
         layout.addWidget(self.directoryChooserBtn,0,0);
-        layout.addWidget(self.levelSelector,0,2);
+        layout.addWidget(self.typeLabel,0,1);
+        layout.addWidget(self.typeCombo,0,2);
+        layout.addWidget(self.levelSelector,0,3);
         layout.addWidget(self.dpLabel,1,0);
         layout.addWidget(self.directoryPathLabel,1,1);
         self.groupBox.setLayout(layout);
@@ -79,6 +91,9 @@ class App(QWidget):
 
 
     ############################Define the event handlers
+    def typeComboHandler(self,text):
+        self.type = text;
+        print(self.type);
     def buttonControl(self):
         file = str(QFileDialog.getExistingDirectory(self, "Select Directory"));
         self.directoryPathLabel.setText(file);
@@ -119,7 +134,7 @@ class App(QWidget):
         for root, dirs, files in os.walk(directoryName):
             if root[len(directoryName)+1:].count(os.sep)<=self.numberOfLevelsToScan:
                 for file in files:
-                    if file.endswith("OUTCAR"):
+                    if file.endswith(self.fileType[self.type]):
                         self.directory.append(root.replace(str(directoryName),"").replace(str(os.sep),"",1)); #appending only dir name
                         self.paths.append(root.replace(".//","").replace("\\","/"))  #appending he full path
                         self.Energy = np.append(self.Energy,[float(self.energyFinder(os.path.join(root,file)))])  #appending the Total Energy
@@ -140,7 +155,7 @@ class App(QWidget):
     def energyFinder(self, file):
         E = 0
         for line in open(file):
-            if "  free  energy   TOTEN  = " in line:
+            if self.energyText[self.type] in line:
                 words= line.split()
                 E = words[4]
         return E
